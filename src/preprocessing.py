@@ -3,6 +3,7 @@ import zipfile
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow.keras.layers import Rescaling
+from tensorflow.keras.callbacks import EarlyStopping
 import config
 
 class DataLoader:
@@ -44,14 +45,14 @@ class DataLoader:
             raise ValueError(f"Error: Unable to unzip {config.ZIP_FILE_PATH}. Check the file format.")
         
         # Load training and testing datasets
-        self.train_data = tf.keras.utils.image_dataset_from_directory(
+        self.train_data_org = tf.keras.utils.image_dataset_from_directory(
             config.TRAINING_DATA,
             shuffle=True,
             image_size=(224, 224),
             batch_size=30,
             validation_split=False
         )
-        self.test_data = tf.keras.utils.image_dataset_from_directory(
+        self.test_data_org = tf.keras.utils.image_dataset_from_directory(
             config.TESTING_DATA,
             shuffle=True,
             image_size=(224, 224),
@@ -59,15 +60,15 @@ class DataLoader:
             validation_split=False
         )
 
-        self.classes = self.train_data.class_names
+        self.classes = self.train_data_org.class_names
         
         #rescaling 
         def rescale(image,label):
             rescaler=Rescaling(1./255)
             image=rescaler(image)
             return image,label
-        self.train_data=self.train_data.map(rescale)
-        self.test_data=self.test_data.map(rescale)
+        self.train_data=self.train_data_org.map(rescale)
+        self.test_data=self.test_data_org.map(rescale)
 
     def plot_samples(self):
         """
@@ -77,14 +78,18 @@ class DataLoader:
             raise ValueError("Train data is not loaded. Call `load_data()` first.")
 
         print('Plotting sample images...')
+        if not os.path.exists('./results/plots/'):
+            os.makedirs('./results/plots/')
         plt.figure(figsize=(10, 10))
-        for images, labels in self.train_data.take(1):
+        for images, labels in self.train_data_org.take(1):
             for i in range(9):
                 plt.subplot(3, 3, i + 1)
                 plt.imshow(images[i].numpy().astype('uint8'))
                 plt.title(self.classes[labels[i]])
                 plt.axis('off')
+        plt.savefig(config.SAMPLE_PLOT_PATH)
         plt.show()
+        
 
     def get_classes(self):
         """
@@ -92,11 +97,28 @@ class DataLoader:
         """
         return self.classes
 
+class call_back:
+    """
+    A class to handle callbacks.
+    """
+    def __init__(self):
+        self.callback=None
+    
+    def get_callbacks(self):
+        self.callback=EarlyStopping(
+            monitor="val_loss",
+            min_delta=0.2,
+            patience=3,
+            verbose=1,
+            mode="auto",
+            restore_best_weights=True
+        )
+        return self.callback
 
 # Entry Point
 if __name__ == "__main__":
     data_loader = DataLoader()
-
+    
     # Load the dataset
     data_loader.load_data()
 

@@ -14,7 +14,6 @@ def preprocess_image(image_path):
     img_array=image.img_to_array(img)
     img_array=np.expand_dims(img_array,axis=0)
     img_array=preprocess_input(img_array)
-    print(' i am in the preprocess image function')
     return img_array
 def predict(image_path):
     loaded_model=tf.keras.models.load_model(config.MODEL_SAVE_PATH)
